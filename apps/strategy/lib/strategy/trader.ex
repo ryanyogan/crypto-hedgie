@@ -31,12 +31,14 @@ defmodule Strategy.Trader do
         %TradeEvent{price: price},
         %State{
           symbol: symbol,
+          budget: budget,
           buy_order: nil,
           buy_down_interval: buy_down_interval,
-          tick_size: tick_size
+          tick_size: tick_size,
+          step_size: step_size
         } = state
       ) do
-    quantity = 100
+    quantity = calculate_quantity(budget, price, step_size)
     price = calculate_buy_price(price, buy_down_interval, tick_size)
 
     Logger.info("Placing BUY order for #{symbol} @ #{price}, quantity: #{quantity}")
@@ -135,6 +137,19 @@ defmodule Strategy.Trader do
       D.mult(
         D.div_int(exact_buy_price, tick_size),
         tick_size
+      )
+    )
+  end
+
+  defp calculate_quantity(budget, price, step_size) do
+    price = D.new(price)
+
+    exact_target_quantity = D.div(budget, price)
+
+    D.to_float(
+      D.mult(
+        D.div_int(exact_target_quantity, step_size),
+        step_size
       )
     )
   end

@@ -1,6 +1,7 @@
 defmodule Strategy.Leader do
   use GenServer
   require Logger
+  alias Decimal, as: D
 
   @binance_client Application.get_env(:strategy, :binance_client)
 
@@ -112,30 +113,48 @@ defmodule Strategy.Leader do
   end
 
   defp fetch_symbol_settings(symbol) do
-    tick_size = fetch_tick_size(symbol)
+    symbol_filters = fetch_symbol_filters(symbol)
 
-    %{
-      symbol: symbol,
-      chunks: 1,
-      buy_down_interval: Decimal.new("0.0001"),
-      profit_interval: Decimal.new("-0.0012"),
-      tick_size: tick_size
-    }
+    Map.merge(
+      %{
+        symbol: symbol,
+        chunks: 1,
+        budget: 20,
+        buy_down_interval: Decimal.new("0.0001"),
+        profit_interval: Decimal.new("-0.0012")
+      },
+      symbol_filters
+    )
   end
 
-  defp fetch_tick_size(symbol) do
-    @binance_client.get_exchange_info()
-    |> elem(1)
-    |> Map.get(:symbols)
-    |> Enum.find(&(&1["symbol"] == symbol))
-    |> Map.get("filters")
-    |> Enum.find(&(&1["filterType"] == "PRICE_FILTER"))
-    |> Map.get("tickSize")
-    |> Decimal.new()
+  defp fetch_symbol_filters(symbol) do
+    symbol_filters =
+      @binance_client.get_exchange_info()
+      |> elem(1)
+      |> Map.get(:symbols)
+      |> Enum.find(&(&1["symbol"] == symbol))
+      |> Map.get("filters")
+
+    tick_size =
+      symbol_filters
+      |> Enum.find(&(&1["filterType"] == "PRICE_FILTER"))
+      |> Map.get("tickSize")
+      |> Decimal.new()
+
+    step_size =
+      symbol_filters
+      |> Enum.find(&(&1["filterType"] == "LOT_SIZE"))
+      |> Map.get("stepSize")
+      |> Decimal.new()
+
+    %{tick_size: tick_size, step_size: step_size}
   end
 
   defp fresh_trader_state(settings) do
-    struct(Strategy.State, settings)
+    %{
+      struct(Strategy.State, settings)
+      | budget: D.div(settings.budget, settings.chunks)
+    }
   end
 
   defp start_new_trader(%Strategy.State{} = state) do
