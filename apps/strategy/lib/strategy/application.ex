@@ -1,6 +1,4 @@
 defmodule Strategy.Application do
-  # See https://hexdocs.pm/elixir/Application.html
-  # for more information on OTP Applications
   @moduledoc false
 
   use Application
@@ -8,12 +6,12 @@ defmodule Strategy.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      # Starts a worker by calling: Strategy.Worker.start_link(arg)
-      # {Strategy.Worker, arg}
+      {
+        DynamicSupervisor,
+        strategy: :one_for_one, name: Strategy.DynamicSymbolSupervisor
+      }
     ]
 
-    # See https://hexdocs.pm/elixir/Supervisor.html
-    # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Strategy.Supervisor]
     Supervisor.start_link(children, opts)
   end

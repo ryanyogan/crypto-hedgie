@@ -1,5 +1,5 @@
 defmodule Strategy.Trader do
-  use GenServer
+  use GenServer, restart: :temporary
   require Logger
 
   alias Decimal, as: D
@@ -8,29 +8,22 @@ defmodule Strategy.Trader do
 
   @binance_client Application.get_env(:strategy, :binance_client)
 
-  def start_link(%{} = args) do
-    GenServer.start_link(__MODULE__, args, name: :trader)
+  def start_link(%State{} = state) do
+    GenServer.start_link(__MODULE__, state)
   end
 
   @impl true
-  def init(%{symbol: symbol, profit_interval: profit_interval}) do
+  def init(%State{symbol: symbol} = state) do
     symbol = String.upcase(symbol)
+
+    Logger.info("Initializing new trader strategy for #{symbol}")
 
     Phoenix.PubSub.subscribe(
       Streamer.PubSub,
       "TRADE_EVENTS:#{symbol}"
     )
 
-    Logger.info("Initializing new trader strategy for #{symbol}")
-
-    tick_size = fetch_tick_size(symbol)
-
-    {:ok,
-     %State{
-       symbol: symbol,
-       profit_interval: profit_interval,
-       tick_size: tick_size
-     }}
+    {:ok, state}
   end
 
   @impl true
@@ -45,7 +38,10 @@ defmodule Strategy.Trader do
     {:ok, %Binance.OrderResponse{} = order} =
       @binance_client.order_limit_buy(symbol, quantity, price, "GTC")
 
-    {:noreply, %{state | buy_order: order}}
+    new_state = %{state | buy_order: order}
+    Strategy.Leader.notify(:trader_state_updated, new_state)
+
+    {:noreply, new_state}
   end
 
   @impl true
@@ -72,7 +68,10 @@ defmodule Strategy.Trader do
     {:ok, %Binance.OrderResponse{} = order} =
       @binance_client.order_limit_sell(symbol, quantity, sell_price, "GTC")
 
-    {:noreply, %{state | sell_order: order}}
+    new_state = %{state | sell_order: order}
+    Strategy.Leader.notify(:trader_state_updated, new_state)
+
+    {:noreply, new_state}
   end
 
   @impl true
