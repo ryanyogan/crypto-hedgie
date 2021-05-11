@@ -26,7 +26,8 @@ defmodule Strategy.MixProject do
     [
       {:binance, "~> 0.7.1"},
       {:decimal, "~> 2.0"},
-      {:streamer, in_umbrella: true}
+      {:streamer, in_umbrella: true},
+      {:phoenix_pubsub, "~> 2.0"}
     ]
   end
 end

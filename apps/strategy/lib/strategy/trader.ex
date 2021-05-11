@@ -14,6 +14,11 @@ defmodule Strategy.Trader do
   def init(%{symbol: symbol, profit_interval: profit_interval}) do
     symbol = String.upcase(symbol)
 
+    Phoenix.PubSub.subscribe(
+      Streamer.PubSub,
+      "TRADE_EVENTS:#{symbol}"
+    )
+
     Logger.info("Initializing new trader strategy for #{symbol}")
 
     tick_size = fetch_tick_size(symbol)
@@ -27,7 +32,7 @@ defmodule Strategy.Trader do
   end
 
   @impl true
-  def handle_cast(
+  def handle_info(
         %TradeEvent{price: price},
         %State{symbol: symbol, buy_order: nil} = state
       ) do
@@ -42,7 +47,7 @@ defmodule Strategy.Trader do
   end
 
   @impl true
-  def handle_cast(
+  def handle_info(
         %TradeEvent{buyer_order_id: order_id, quantity: quantity},
         %State{
           symbol: symbol,
@@ -69,7 +74,7 @@ defmodule Strategy.Trader do
   end
 
   @impl true
-  def handle_cast(
+  def handle_info(
         %TradeEvent{seller_order_id: order_id, quantity: quantity},
         %State{
           sell_order: %Binance.OrderResponse{
@@ -83,7 +88,7 @@ defmodule Strategy.Trader do
   end
 
   @impl true
-  def handle_cast(%TradeEvent{}, state) do
+  def handle_info(%TradeEvent{}, state) do
     {:noreply, state}
   end
 
