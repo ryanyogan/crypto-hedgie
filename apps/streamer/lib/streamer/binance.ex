@@ -44,5 +44,7 @@ defmodule Streamer.Binance do
       "Trade event received " <>
         "#{trade_event.symbol}@#{trade_event.price}"
     )
+
+    Strategy.send_event(trade_event)
   end
 end
