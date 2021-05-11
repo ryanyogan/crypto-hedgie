@@ -3,7 +3,7 @@ defmodule Strategy.Trader do
   require Logger
 
   alias Decimal, as: D
-  alias Strategy.State
+  alias Strategy.{State, Leader}
   alias Streamer.Binance.TradeEvent
 
   @binance_client Application.get_env(:strategy, :binance_client)
@@ -39,7 +39,7 @@ defmodule Strategy.Trader do
       @binance_client.order_limit_buy(symbol, quantity, price, "GTC")
 
     new_state = %{state | buy_order: order}
-    Strategy.Leader.notify(:trader_state_updated, new_state)
+    Leader.notify(:trader_state_updated, new_state)
 
     {:noreply, new_state}
   end
@@ -69,7 +69,7 @@ defmodule Strategy.Trader do
       @binance_client.order_limit_sell(symbol, quantity, sell_price, "GTC")
 
     new_state = %{state | sell_order: order}
-    Strategy.Leader.notify(:trader_state_updated, new_state)
+    Leader.notify(:trader_state_updated, new_state)
 
     {:noreply, new_state}
   end
@@ -91,17 +91,6 @@ defmodule Strategy.Trader do
   @impl true
   def handle_info(%TradeEvent{}, state) do
     {:noreply, state}
-  end
-
-  defp fetch_tick_size(symbol) do
-    @binance_client.get_exchange_info()
-    |> elem(1)
-    |> Map.get(:symbols)
-    |> Enum.find(&(&1["symbol"] == symbol))
-    |> Map.get("filters")
-    |> Enum.find(&(&1["filterType"] == "PRICE_FILTER"))
-    |> Map.get("tickSize")
-    |> Decimal.new()
   end
 
   defp calculate_sell_price(buy_price, profit_interval, tick_size) do
