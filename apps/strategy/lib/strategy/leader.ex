@@ -117,6 +117,7 @@ defmodule Strategy.Leader do
     %{
       symbol: symbol,
       chunks: 1,
+      buy_down_interval: Decimal.new("0.0001"),
       profit_interval: Decimal.new("-0.0012"),
       tick_size: tick_size
     }

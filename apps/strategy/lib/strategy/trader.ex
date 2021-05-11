@@ -29,9 +29,15 @@ defmodule Strategy.Trader do
   @impl true
   def handle_info(
         %TradeEvent{price: price},
-        %State{symbol: symbol, buy_order: nil} = state
+        %State{
+          symbol: symbol,
+          buy_order: nil,
+          buy_down_interval: buy_down_interval,
+          tick_size: tick_size
+        } = state
       ) do
     quantity = 100
+    price = calculate_buy_price(price, buy_down_interval, tick_size)
 
     Logger.info("Placing BUY order for #{symbol} @ #{price}, quantity: #{quantity}")
 
@@ -108,6 +114,26 @@ defmodule Strategy.Trader do
     D.to_float(
       D.mult(
         D.div_int(gross_target_price, tick_size),
+        tick_size
+      )
+    )
+  end
+
+  defp calculate_buy_price(price, buy_down_interval, tick_size) do
+    current_price = D.new(price)
+
+    # This price needs to hash with tick size, so
+    # will normalize the return after the exact price,
+    # as the market goes you can be a tick or two off
+    exact_buy_price =
+      D.sub(
+        current_price,
+        D.mult(current_price, buy_down_interval)
+      )
+
+    D.to_float(
+      D.mult(
+        D.div_int(exact_buy_price, tick_size),
         tick_size
       )
     )
